@@ -80,36 +80,63 @@ class Test_alias_name_validator(unittest.TestCase):
         from .. import alias_name_validator
         return alias_name_validator(node, kw)
 
-    def _makeKw(self):
+    def _makeKw(self, context):
         request = testing.DummyRequest()
-        request.context = DummyFolder()
+        request.context = context
         return dict(request=request)
 
-    def test_not_adding_with_exception(self):
-        kw = self._makeKw()
+    def test_adding_no_exception(self):
+        context = DummyFolder()
+        kw = self._makeKw(context)
+        node = testing.DummyResource()
+        validator = self._makeOne(node, kw)
+        self.assertEqual(None, validator(node, 'abc'))
+
+    def test_adding_with_exception(self):
+        context = DummyFolder()
+        kw = self._makeKw(context)
         kw['request'].context['abc'] = testing.DummyResource()
         node = object()
         validator = self._makeOne(node, kw)
         self.assertRaises(colander.Invalid, validator, node, 'abc')
 
-    def test_adding_with_exception(self):
+    def test_renaming_with_exception(self):
         from .. import IAlias
-        kw = self._makeKw()
-        context = kw['request'].context
-        context['abc'] = testing.DummyResource()
+        parent = DummyFolder()
+        parent['taken'] = testing.DummyResource()
+        context = testing.DummyResource()
+        parent['abc'] = context
         alsoProvides(context, IAlias)
+        kw = self._makeKw(context)
         node = object()
         validator = self._makeOne(node, kw)
-        self.assertRaises(colander.Invalid, validator, node, 'abc')
+        self.assertRaises(colander.Invalid, validator, node, 'taken')
 
-    def test_adding_no_exception(self):
-        kw = self._makeKw()
+    def test_renaming_no_exception(self):
+        from .. import IAlias
+        parent = DummyFolder()
+        context = testing.DummyResource()
+        parent['abc'] = context
+        alsoProvides(context, IAlias)
+        kw = self._makeKw(context)
+        node = object()
+        validator = self._makeOne(node, kw)
+        self.assertEqual(None, validator(node, 'not_taken'))
+
+    def test_not_adding_not_renaming(self):
+        from .. import IAlias
+        parent = DummyFolder()
+        context = testing.DummyResource()
+        parent['abc'] = context
+        alsoProvides(context, IAlias)
+        kw = self._makeKw(context)
         node = object()
         validator = self._makeOne(node, kw)
         self.assertEqual(None, validator(node, 'abc'))
 
     def test_slash_in_name_exception(self):
-        kw = self._makeKw()
+        context = DummyFolder()
+        kw = self._makeKw(context)
         node = object()
         validator = self._makeOne(node, kw)
         self.assertRaises(colander.Invalid, validator, node, 'a/b')
@@ -125,11 +152,11 @@ class Test_alias_resource_validator(unittest.TestCase):
         return dict(request=request)
 
     def test_valid_resource(self):
-        context = DummyFolder()
-        context['a'] = DummyFolder()
-        context['a']['b'] = testing.DummyResource()
+        root = DummyFolder()
+        root['a'] = DummyFolder()
+        root['a']['b'] = testing.DummyResource()
         kw = self._makeKw()
-        kw['request'].context = context
+        kw['request'].root = root
         node = object()
         validator = self._makeOne(node, kw)
         self.assertEqual(None, validator(node, 'a/b'))
@@ -233,6 +260,8 @@ class DummyFolder(testing.DummyResource):
     def check_name(self, value):
         if value in self:
             raise KeyError(value)
+        elif '/' in value:
+            raise ValueError(value)
 
     def rename(self, oldname, newname):
         old = self[oldname]

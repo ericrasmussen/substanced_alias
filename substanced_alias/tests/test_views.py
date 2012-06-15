@@ -62,6 +62,7 @@ class TestAddAliasView(unittest.TestCase):
         root = DummyFolder()
         root['test'] = testing.DummyResource()
         request.context = root
+        request.root = root
         return request
 
     def test_add_success(self):

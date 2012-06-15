@@ -60,22 +60,34 @@ def alias_name_validator(node, kw):
     context = request.context
 
     def exists(node, value):
-        is_new = not IAlias.providedBy(context)
-        renaming = value != context.__name__
-        if is_new or renaming:
-            try:
-                context.check_name(value)
-            except Exception as e:
-                raise colander.Invalid(node, e.args[0], value)
+        """ Finds an appropriate name checking function (name_checker) when
+        an Alias is being newly added to a Folder and when an existing Alias
+        is renamed.
+        Otherwise we're not adding or changing a key, so it uses a default
+        name_checker that always passes.
+        """
 
-    def noslashes(node, value):
-        if '/' in value:
-            raise colander.Invalid(node, 'Name cannot contain a "/"', value)
+        # case: context is a Folder
+        if not IAlias.providedBy(context):
+            name_checker = context.check_name
+
+        # case: context is an Alias that is being renamed
+        elif value != context.__name__:
+            name_checker = context.__parent__.check_name
+
+        # case: context is an Alias and the key isn't changing
+        else:
+            name_checker = lambda v: None
+
+        # raise colander.Invalid if the chosen name_checker fails
+        try:
+            name_checker(value)
+        except Exception as e:
+            raise colander.Invalid(node, e.args[0], value)
 
     return colander.All(
         colander.Length(min=1, max=255),
         exists,
-        noslashes,
         )
 
 @colander.deferred
@@ -87,7 +99,7 @@ def alias_resource_validator(node, kw):
 
     def exists(node, value):
         try:
-            find_resource(context, value)
+            find_resource(request.root, value)
         except KeyError:
             raise colander.Invalid(node, 'Resource not found', value)
 
@@ -98,6 +110,7 @@ class AliasSchema(Schema):
     name = colander.SchemaNode(
         colander.String(),
         widget=widget.TextInputWidget(),
+        validator=alias_name_validator,
         )
     resource = colander.SchemaNode(
         colander.String(),
@@ -132,7 +145,7 @@ class AliasPropertySheet(PropertySheet):
 @content(
     IAlias,
     name='Alias',
-    icon='icon-chevron-right',
+    icon='icon-arrow-right',
     add_view='add_alias',
     propertysheets = (
         ('Basic', AliasPropertySheet),

@@ -59,7 +59,7 @@ class AddAliasView(FormView):
         resource_path = appstruct['resource']
         # possibly handle this at the deform level to avoid repeating this
         # in the propertysheet's set method
-        resource = find_resource(self.context, resource_path)
+        resource = find_resource(self.request.root, resource_path)
         inst = self.request.registry.content.create(
             IAlias, name, resource) # elems?
         self.context[name] = inst
