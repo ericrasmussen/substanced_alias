@@ -6,16 +6,19 @@ aliases for resources. The aliases maintain a reference to a resource in zodb
 and perform a redirect to the full URL when accessed.
 
 Ex. You want to share your amazing new blog post located here:
-  http://site/blog/categoxsry/posts/neat-article?page=7
+  http://site/blog/category/posts/neat-article?page=7
 
 But you want the URL to look like this:
   http://site/NEAT
 
-To achieve it, you only need:
-  <import and mixin code here>
+In your Pyramid's main function, add:
 
-Then the folder (in this case the Site folder) will list Alias objects as
-addable via the Add button.
+    config.include('substanced')
+    config.include('substanced_alias')
+
+
+Now when you access a Folder through the admin interface (including your site's
+root folder), the Add button menu will allow you to add an Alias object.
 
 
 Singleton FAQ
