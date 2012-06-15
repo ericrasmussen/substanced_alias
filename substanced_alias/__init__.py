@@ -9,8 +9,8 @@ from zope.interface import Interface
 from pyramid.traversal import find_resource
 
 def includeme(config): # pragma no cover
-    """ This doesn't work yet. """
-
+    """ Register @content, @view_config, and @mgmt_view. """
+    config.scan('.')
 
 class IAlias(Interface):
     """ Interface representing an alias that can redirect to another resource.

@@ -43,7 +43,6 @@ def alias_key_lookup(request):
     keys = get_matching_keys(request.context, path)
     return keys
 
-# TODO: does this context apply in an inheritance chain? update docstring if not
 @mgmt_view(context=IFolder, name='add_alias', permission='add alias',
            renderer='substanced.sdi:templates/form.pt',
            tab_condition=False)
