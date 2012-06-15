@@ -223,15 +223,6 @@ class Test_get_matching_keys(unittest.TestCase):
         result.sort()
         self.assertEqual(result, ['a1', 'a2'])
 
-    def test_non_root_search(self):
-        inst = self._makeOne()
-        root = DummyFolder()
-        root['a_ignored'] = testing.DummyResource()
-        root['relative'] = DummyFolder()
-        root['relative']['a_found'] = testing.DummyResource()
-        result = inst(root['relative'], 'a')
-        self.assertEqual(result, ['a_found'])
-
     def test_empty_search(self):
         inst = self._makeOne()
         root = DummyFolder()
