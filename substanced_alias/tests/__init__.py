@@ -9,9 +9,9 @@ from substanced.interfaces import IFolder
 
 
 class TestAlias(unittest.TestCase):
-    def _makeOne(self, name, resource, elems=()):
+    def _makeOne(self, name, resource, query=None):
         from .. import Alias
-        return Alias(name, resource, elems)
+        return Alias(name, resource, query)
 
     def test_ctor(self):
         resource = testing.DummyResource()
@@ -22,9 +22,9 @@ class TestAlias(unittest.TestCase):
     def test_generate_url(self):
         resource = testing.DummyResource()
         request = testing.DummyRequest()
-        inst = self._makeOne('test', resource, ['a', 'b'])
+        inst = self._makeOne('test', resource)
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/a/b')
+        self.assertEqual(url, 'http://example.com/')
 
     def test_generate_url_nested_resource(self):
         request = testing.DummyRequest()
@@ -32,9 +32,17 @@ class TestAlias(unittest.TestCase):
         resource = testing.DummyResource()
         request.root['myresource'] = resource
         request.context = resource
-        inst = self._makeOne('test', resource, ['a', 'b'])
+        inst = self._makeOne('test', resource)
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/myresource/a/b')
+        self.assertEqual(url, 'http://example.com/myresource/')
+
+    def test_generate_url_with_elems(self):
+        resource = testing.DummyResource()
+        request = testing.DummyRequest()
+        query = dict(one=1)
+        inst = self._makeOne('test', resource, query)
+        url = inst.generate_url(request)
+        self.assertEqual(url, 'http://example.com/?one=1')
 
     def test_redirect(self):
         resource = testing.DummyResource()

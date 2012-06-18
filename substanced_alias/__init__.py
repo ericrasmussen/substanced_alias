@@ -141,7 +141,6 @@ class AliasPropertySheet(PropertySheet):
         context.resource = find_resource(parent, resourcename)
 
 
-# TODO: make elems part of the propertysheet
 @content(
     IAlias,
     name='Alias',
@@ -154,13 +153,18 @@ class AliasPropertySheet(PropertySheet):
 class Alias(Persistent):
     """ Object representing a resource alias."""
 
-    def __init__(self, name, resource, elems=()):
+    def __init__(self, name, resource, query=None):
         self.name = name
         self.resource = resource
-        self.elems = elems
+        self.query = query
 
     def generate_url(self, request):
-        return request.resource_url(self.resource, *self.elems)
+        """ Only use the ``query`` parameter if not None, otherwise it will
+        append a '?' to every URL. """
+        if self.query is None:
+            return request.resource_url(self.resource)
+        else:
+            return request.resource_url(self.resource, query=self.query)
 
     def redirect(self, request):
         url = self.generate_url(request)
