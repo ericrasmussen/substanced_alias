@@ -69,7 +69,7 @@ class TestAddAliasView(unittest.TestCase):
         resource = testing.DummyResource()
         request = self._makeRequest(resource)
         inst = self._makeOne(request.context, request)
-        struct = dict(name='name', resource='test', query=None)
+        struct = dict(name='name', resource='test', query=None, anchor=None)
         resp = inst.add_success(struct)
 
 class DummyContent(object):

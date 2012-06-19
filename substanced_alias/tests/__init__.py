@@ -9,9 +9,9 @@ from substanced.interfaces import IFolder
 
 
 class TestAlias(unittest.TestCase):
-    def _makeOne(self, name, resource, query=None):
+    def _makeOne(self, name, resource, query=None, anchor=None):
         from .. import Alias
-        return Alias(name, resource, query)
+        return Alias(name, resource, query=query, anchor=anchor)
 
     def test_ctor(self):
         resource = testing.DummyResource()
@@ -43,6 +43,21 @@ class TestAlias(unittest.TestCase):
         inst = self._makeOne('test', resource, query)
         url = inst.generate_url(request)
         self.assertEqual(url, 'http://example.com/?one=1')
+
+    def test_generate_url_with_anchor(self):
+        resource = testing.DummyResource()
+        request = testing.DummyRequest()
+        inst = self._makeOne('test', resource, anchor='example')
+        url = inst.generate_url(request)
+        self.assertEqual(url, 'http://example.com/#example')
+
+    def test_generate_url_with_elems_and_anchor(self):
+        resource = testing.DummyResource()
+        request = testing.DummyRequest()
+        query = ["one=1"]
+        inst = self._makeOne('test', resource, query=query, anchor='example')
+        url = inst.generate_url(request)
+        self.assertEqual(url, 'http://example.com/?one=1#example')
 
     def test_redirect(self):
         resource = testing.DummyResource()
@@ -198,6 +213,7 @@ class TestAliasPropertySheet(unittest.TestCase):
         context.name = 'name'
         context.resource = resource
         context.query = None
+        context.anchor = None
         def updatequery(query):
             context.query = query
         context.updatequery = updatequery
@@ -224,12 +240,14 @@ class TestAliasPropertySheet(unittest.TestCase):
         root['name'] = context
         request = testing.DummyRequest()
         inst = self._makeOne(context, request)
-        struct = dict(name='newname', resource='resource', query=["one=1"])
+        struct = dict(name='newname', resource='resource', query=["one=1"],
+                      anchor=None)
         inst.set(struct)
         self.assertIn('newname', root)
         self.assertEqual(context.name, 'newname')
         self.assertEqual(context.resource, resource)
         self.assertEqual(context.query, ["one=1"])
+        self.assertEqual(context.anchor, None)
 
 class Test_get_matching_keys(unittest.TestCase):
     def _makeOne(self):

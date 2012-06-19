@@ -124,6 +124,10 @@ class AliasSchema(Schema):
         widget=keys_autocomplete_widget,
         validator=alias_resource_validator,
         )
+    anchor = colander.SchemaNode(
+        colander.String(),
+        missing=None,
+        )
     query = QueryParams()
 
 
@@ -137,6 +141,7 @@ class AliasPropertySheet(PropertySheet):
         resource_path = self.request.resource_path(context.resource)
         props['resource'] = resource_path
         props['query'] = context.query
+        props['anchor'] = context.anchor
         return props
 
     def set(self, struct):
@@ -151,9 +156,8 @@ class AliasPropertySheet(PropertySheet):
         context.resource = find_resource(parent, resourcename)
         query = struct['query']
         context.updatequery(query)
+        context.anchor = struct['anchor']
 
-
-# TODO: add an anchor kw also
 @content(
     IAlias,
     name='Alias',
@@ -166,19 +170,24 @@ class AliasPropertySheet(PropertySheet):
 class Alias(Persistent):
     """ Object representing a resource alias."""
 
-    def __init__(self, name, resource, query=None):
+    def __init__(self, name, resource, query=None, anchor=None):
         self.name = name
         self.resource = resource
+        self.anchor = anchor
         self.query = query
         self._querydict = self.dict_from_query(query)
 
     def generate_url(self, request):
-        """ Only use the ``query`` parameter if not None, otherwise it will
-        append a '?' to every URL. """
-        if self._querydict is None:
-            return request.resource_url(self.resource)
-        else:
-            return request.resource_url(self.resource, query=self._querydict)
+        """ Builds up a list of keyword arguments for non-None elements.
+        Otherwise default values for query and anchor would always
+        append '?' and '#' elements to the URL.
+        """
+        kwargs = {}
+        if self._querydict is not None:
+            kwargs['query'] = self._querydict
+        if self.anchor is not None:
+            kwargs['anchor'] = self.anchor
+        return request.resource_url(self.resource, **kwargs)
 
     def redirect(self, request):
         """ Perform a redirect."""
@@ -186,8 +195,11 @@ class Alias(Persistent):
         return HTTPFound(location=url)
 
     def dict_from_query(self, query):
-        """ Turns a sequence of "key=value" or "key" strings into a dict. """
-        if query == None:
+        """ Turns a sequence of "key=value" or "key" strings into a dict.
+        Note: ``_querydict`` should be None if ``query`` is either None or
+        (in the event items are added to the sequence then removed) [].
+        """
+        if query == None or query == []:
             return None
 
         d = {}

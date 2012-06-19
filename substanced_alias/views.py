@@ -59,8 +59,9 @@ class AddAliasView(FormView):
         resource_path = appstruct['resource']
         resource = find_resource(self.request.root, resource_path)
         query = appstruct['query']
+        anchor = appstruct['anchor']
         inst = self.request.registry.content.create(
-            IAlias, name, resource, query=query)
+            IAlias, name, resource, query=query, anchor=anchor)
         self.context[name] = inst
         return HTTPFound(self.request.mgmt_path(inst, '@@properties'))
 
