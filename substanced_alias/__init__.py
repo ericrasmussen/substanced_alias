@@ -7,13 +7,20 @@ import colander
 from substanced.schema import Schema
 from zope.interface import Interface
 from pyramid.traversal import find_resource
+from substanced.service import find_service
+
 
 def includeme(config): # pragma no cover
     """ Register @content, @view_config, and @mgmt_view. """
     config.scan('.')
 
 class IAlias(Interface):
-    """ Interface representing an alias that can redirect to another resource.
+    """ Represents an ``Alias`` that can redirect to another resource.
+    """
+
+class AliasToResource(Interface):
+    """ Represents a relationship between an ``Alias`` and a
+    resource.
     """
 
 def get_matching_keys(root, path):
@@ -172,22 +179,41 @@ class Alias(Persistent):
 
     def __init__(self, name, resource, query=None, anchor=None):
         self.name = name
-        self.resource = resource
+        self._resource = resource
         self.anchor = anchor
         self.query = query
         self._querydict = self.dict_from_query(query)
+
+    def connect_to_resource_callback(self):
+        objectmap = find_service(self, 'objectmap')
+        objectmap.connect(self, self._resource, AliasToResource)
+
+    @property
+    def resource(self):
+        objectmap = find_service(self, 'objectmap')
+        ids = objectmap.targetids(self, AliasToResource)
+        if len(ids) == 0:
+            return None
+        uid = ids[0]
+        return objectmap.object_for(uid)
 
     def generate_url(self, request):
         """ Builds up a list of keyword arguments for non-None elements.
         Otherwise default values for query and anchor would always
         append '?' and '#' elements to the URL.
+        If the associated resource is deleted, it will raise a ``NotFound``
+        exception instead.
         """
+        resource = self.resource
+        if resource is None:
+            from pyramid.exceptions import NotFound
+            raise NotFound
         kwargs = {}
         if self._querydict is not None:
             kwargs['query'] = self._querydict
         if self.anchor is not None:
             kwargs['anchor'] = self.anchor
-        return request.resource_url(self.resource, **kwargs)
+        return request.resource_url(resource, **kwargs)
 
     def redirect(self, request):
         """ Perform a redirect."""
