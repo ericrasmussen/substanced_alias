@@ -117,6 +117,7 @@ class AliasSchema(Schema):
         widget=keys_autocomplete_widget,
         validator=alias_resource_validator,
         )
+    # add a sequence widget here for query params
 
 class AliasPropertySheet(PropertySheet):
     schema = AliasSchema()
@@ -167,6 +168,7 @@ class Alias(Persistent):
             return request.resource_url(self.resource, query=self.query)
 
     def redirect(self, request):
+        """ Perform a redirect."""
         url = self.generate_url(request)
         return HTTPFound(location=url)
 
