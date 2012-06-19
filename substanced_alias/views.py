@@ -57,11 +57,10 @@ class AddAliasView(FormView):
     def add_success(self, appstruct):
         name = appstruct['name']
         resource_path = appstruct['resource']
-        # possibly handle this at the deform level to avoid repeating this
-        # in the propertysheet's set method
         resource = find_resource(self.request.root, resource_path)
+        query = appstruct['query']
         inst = self.request.registry.content.create(
-            IAlias, name, resource) # elems?
+            IAlias, name, resource, query=query)
         self.context[name] = inst
         return HTTPFound(self.request.mgmt_path(inst, '@@properties'))
 

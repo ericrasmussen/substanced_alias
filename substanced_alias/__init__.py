@@ -105,6 +105,13 @@ def alias_resource_validator(node, kw):
 
     return exists
 
+class QueryParams(colander.SequenceSchema):
+    key_value = colander.SchemaNode(
+        colander.String(),
+        validator=colander.Length(min=1),
+        widget = widget.TextInputWidget(),
+        )
+
 class AliasSchema(Schema):
     """ The property schema for ``Alias`` objects."""
     name = colander.SchemaNode(
@@ -117,7 +124,8 @@ class AliasSchema(Schema):
         widget=keys_autocomplete_widget,
         validator=alias_resource_validator,
         )
-    # add a sequence widget here for query params
+    query = QueryParams()
+
 
 class AliasPropertySheet(PropertySheet):
     schema = AliasSchema()
@@ -128,6 +136,7 @@ class AliasPropertySheet(PropertySheet):
         props['name'] = context.name
         resource_path = self.request.resource_path(context.resource)
         props['resource'] = resource_path
+        props['query'] = context.query
         return props
 
     def set(self, struct):
@@ -140,8 +149,11 @@ class AliasPropertySheet(PropertySheet):
             context.name = newname
         resourcename = struct['resource']
         context.resource = find_resource(parent, resourcename)
+        query = struct['query']
+        context.updatequery(query)
 
 
+# TODO: add an anchor kw also
 @content(
     IAlias,
     name='Alias',
@@ -158,17 +170,35 @@ class Alias(Persistent):
         self.name = name
         self.resource = resource
         self.query = query
+        self._querydict = self.dict_from_query(query)
 
     def generate_url(self, request):
         """ Only use the ``query`` parameter if not None, otherwise it will
         append a '?' to every URL. """
-        if self.query is None:
+        if self._querydict is None:
             return request.resource_url(self.resource)
         else:
-            return request.resource_url(self.resource, query=self.query)
+            return request.resource_url(self.resource, query=self._querydict)
 
     def redirect(self, request):
         """ Perform a redirect."""
         url = self.generate_url(request)
         return HTTPFound(location=url)
 
+    def dict_from_query(self, query):
+        """ Turns a sequence of "key=value" or "key" strings into a dict. """
+        if query == None:
+            return None
+
+        d = {}
+
+        for item in query:
+            key, sep, value = item.partition('=')
+            d[key] = value
+
+        return d
+
+    def updatequery(self, query):
+        """ Convenience method to reset both ``query`` and ``_querydict``. """
+        self.query = query
+        self._querydict = self.dict_from_query(query)
