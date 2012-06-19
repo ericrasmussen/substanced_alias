@@ -39,7 +39,7 @@ class TestAlias(unittest.TestCase):
     def test_generate_url_with_elems(self):
         resource = testing.DummyResource()
         request = testing.DummyRequest()
-        query = dict(one=1)
+        query = ["one=1"]
         inst = self._makeOne('test', resource, query)
         url = inst.generate_url(request)
         self.assertEqual(url, 'http://example.com/?one=1')
@@ -50,6 +50,15 @@ class TestAlias(unittest.TestCase):
         inst = self._makeOne('test', resource)
         resp = inst.redirect(request)
         self.assertEqual(resp.code, 302)
+
+    def test_updatequery(self):
+        resource = testing.DummyResource()
+        request = testing.DummyRequest()
+        query = ["foo=bar"]
+        inst = self._makeOne('test', resource, query)
+        self.assertEqual(inst._querydict, {'foo': 'bar'})
+        inst.updatequery(["foo=baz"])
+        self.assertEqual(inst._querydict, {'foo': 'baz'})
 
 
 class Test_keys_autocomplete_widget(unittest.TestCase):
@@ -188,6 +197,10 @@ class TestAliasPropertySheet(unittest.TestCase):
         context.__name__ = 'name'
         context.name = 'name'
         context.resource = resource
+        context.query = None
+        def updatequery(query):
+            context.query = query
+        context.updatequery = updatequery
         return context
 
     def test_get_properties(self):
@@ -200,6 +213,7 @@ class TestAliasPropertySheet(unittest.TestCase):
         props = inst.get()
         self.assertEqual(props['name'], 'name')
         self.assertEqual(props['resource'], '/resource/')
+        self.assertEqual(props['query'], None)
 
     def test_set_properties(self):
         root = DummyFolder()
@@ -210,11 +224,12 @@ class TestAliasPropertySheet(unittest.TestCase):
         root['name'] = context
         request = testing.DummyRequest()
         inst = self._makeOne(context, request)
-        struct = dict(name='newname', resource='resource')
+        struct = dict(name='newname', resource='resource', query=["one=1"])
         inst.set(struct)
         self.assertIn('newname', root)
         self.assertEqual(context.name, 'newname')
         self.assertEqual(context.resource, resource)
+        self.assertEqual(context.query, ["one=1"])
 
 class Test_get_matching_keys(unittest.TestCase):
     def _makeOne(self):
