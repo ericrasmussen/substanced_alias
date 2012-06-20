@@ -13,64 +13,75 @@ class TestAlias(unittest.TestCase):
         from .. import Alias
         return Alias(name, resource, query=query, anchor=anchor)
 
+    def _makeParent(self, resource):
+        parent = DummyFolder()
+        parent['__services__'] = DummyFolder()
+        parent['__services__']['objectmap'] = DummyObjectMap(result=resource)
+        parent['resource'] = resource
+        return parent
+
     def test_ctor(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         inst = self._makeOne('test', resource)
+        parent['test'] = inst
         self.assertEqual(inst.name, 'test')
         self.assertEqual(inst.resource, resource)
 
     def test_generate_url(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         inst = self._makeOne('test', resource)
+        parent['test'] = inst
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/')
-
-    def test_generate_url_nested_resource(self):
-        request = testing.DummyRequest()
-        request.root = DummyFolder()
-        resource = testing.DummyResource()
-        request.root['myresource'] = resource
-        request.context = resource
-        inst = self._makeOne('test', resource)
-        url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/myresource/')
+        self.assertEqual(url, 'http://example.com/resource/')
 
     def test_generate_url_with_elems(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         query = ["one=1"]
         inst = self._makeOne('test', resource, query)
+        parent['test'] = inst
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/?one=1')
+        self.assertEqual(url, 'http://example.com/resource/?one=1')
 
     def test_generate_url_with_anchor(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         inst = self._makeOne('test', resource, anchor='example')
+        parent['test'] = inst
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/#example')
+        self.assertEqual(url, 'http://example.com/resource/#example')
 
     def test_generate_url_with_elems_and_anchor(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         query = ["one=1"]
         inst = self._makeOne('test', resource, query=query, anchor='example')
+        parent['test'] = inst
         url = inst.generate_url(request)
-        self.assertEqual(url, 'http://example.com/?one=1#example')
+        self.assertEqual(url, 'http://example.com/resource/?one=1#example')
 
     def test_redirect(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         inst = self._makeOne('test', resource)
+        parent['test'] = inst
         resp = inst.redirect(request)
         self.assertEqual(resp.code, 302)
 
     def test_updatequery(self):
         resource = testing.DummyResource()
+        parent = self._makeParent(resource)
         request = testing.DummyRequest()
         query = ["foo=bar"]
         inst = self._makeOne('test', resource, query)
+        parent['test'] = inst
         self.assertEqual(inst._querydict, {'foo': 'bar'})
         inst.updatequery(["foo=baz"])
         self.assertEqual(inst._querydict, {'foo': 'baz'})
@@ -216,7 +227,10 @@ class TestAliasPropertySheet(unittest.TestCase):
         context.anchor = None
         def updatequery(query):
             context.query = query
+        def update_resource(resource):
+            context.resource = resource
         context.updatequery = updatequery
+        context.update_resource = update_resource
         return context
 
     def test_get_properties(self):
@@ -239,6 +253,7 @@ class TestAliasPropertySheet(unittest.TestCase):
         context.__parent__ = root
         root['name'] = context
         request = testing.DummyRequest()
+        request.root = root
         inst = self._makeOne(context, request)
         struct = dict(name='newname', resource='resource', query=["one=1"],
                       anchor=None)
@@ -286,6 +301,7 @@ class Test_get_matching_keys(unittest.TestCase):
         result = inst(root, 'bad/key')
         self.assertEqual(result, [])
 
+
 @implementer(IFolder)
 class DummyFolder(testing.DummyResource):
 
@@ -300,3 +316,32 @@ class DummyFolder(testing.DummyResource):
         del self[oldname]
         self[newname] = old
 
+class DummyObjectMap(object):
+    def __init__(self, result=()):
+        self.result = result
+        self.connections = []
+        self.disconnections = []
+
+    def object_for(self, oid):
+        return oid
+
+    def objectid_for(self, obj):
+        return obj
+
+    def sourceids(self, object, reftype):
+        return self.result
+
+    def targetids(self, object, reftype):
+        return [self.result]
+
+    def sources(self, object, reftype):
+        return self.result
+
+    def targets(self, object, reftype):
+        return self.result
+
+    def connect(self, source, target, reftype):
+        self.connections.append((source, target, reftype))
+
+    def disconnect(self, source, target, reftype):
+        self.disconnections.append((source, target, reftype))

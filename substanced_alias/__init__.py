@@ -11,7 +11,7 @@ from substanced.service import find_service
 
 
 def includeme(config): # pragma no cover
-    """ Register @content, @view_config, and @mgmt_view. """
+    """ Register content type, views, and subscribers. """
     config.scan('.')
 
 class IAlias(Interface):
@@ -138,6 +138,13 @@ class AliasSchema(Schema):
     query = QueryParams()
 
 
+def objectid_for_resource(resource):
+    """ Convenience function to get the object id of a persisted ``resource``.
+    """
+    objectmap = find_service(resource, 'objectmap')
+    return objectmap.objectid_for(resource)
+
+
 class AliasPropertySheet(PropertySheet):
     schema = AliasSchema()
 
@@ -159,11 +166,12 @@ class AliasPropertySheet(PropertySheet):
         if newname != oldname:
             parent.rename(oldname, newname)
             context.name = newname
-        resourcename = struct['resource']
-        context.resource = find_resource(parent, resourcename)
+        resource = find_resource(self.request.root, struct['resource'])
+        context.update_resource(resource)
         query = struct['query']
         context.updatequery(query)
         context.anchor = struct['anchor']
+
 
 @content(
     IAlias,
@@ -179,14 +187,37 @@ class Alias(Persistent):
 
     def __init__(self, name, resource, query=None, anchor=None):
         self.name = name
-        self._resource = resource
+        self.resource_oid = objectid_for_resource(resource)
         self.anchor = anchor
         self.query = query
         self._querydict = self.dict_from_query(query)
 
     def connect_to_resource_callback(self):
         objectmap = find_service(self, 'objectmap')
-        objectmap.connect(self, self._resource, AliasToResource)
+        resource = objectmap.object_for(self.resource_oid)
+        objectmap.connect(self, resource, AliasToResource)
+
+    def update_resource(self, new_resource):
+        """ Convenience method to change ``self.resource_oid`` and update the
+        ``AliasToResource`` relationship when the ``Alias`` points to a new
+        resource.
+        """
+        old_resource_oid = self.resource_oid
+        new_resource_oid = objectid_for_resource(new_resource)
+
+        # same resource as before, return early
+        if new_resource_oid == old_resource_oid:
+            return
+
+        objectmap = find_service(self, 'objectmap')
+
+        # remove the old
+        old_resource = objectmap.object_for(old_resource_oid)
+        objectmap.disconnect(self, old_resource, AliasToResource)
+
+        # add the new
+        self.resource_oid = new_resource_oid
+        objectmap.connect(self, new_resource, AliasToResource)
 
     @property
     def resource(self):

@@ -14,6 +14,7 @@ from . import (
     IAlias,
     AliasSchema,
     get_matching_keys,
+    objectid_for_resource,
 )
 
 
@@ -56,8 +57,7 @@ class AddAliasView(FormView):
 
     def add_success(self, appstruct):
         name = appstruct['name']
-        resource_path = appstruct['resource']
-        resource = find_resource(self.request.root, resource_path)
+        resource = find_resource(self.request.root, appstruct['resource'])
         query = appstruct['query']
         anchor = appstruct['anchor']
         inst = self.request.registry.content.create(
